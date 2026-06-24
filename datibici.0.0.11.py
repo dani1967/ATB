@@ -7,6 +7,13 @@ Copyright (C) 2026 Daniele Drago <dandrago@altevista.org>
 """
 
 import os
+# Forza le librerie di calcolo a usare un solo thread (previene i blocchi nei binari PyInstaller)
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+
 import math
 import time
 import numpy as np
@@ -202,30 +209,43 @@ def get_location_name(lat, lon):
 # 3. ALGORITMO DOUGLAS-PEUCKER
 # ==========================================
 def douglas_peucker(points, epsilon):
-    if len(points) < 3: return [0, len(points) - 1]
-    start_pt, end_pt = points[0], points[-1]
-    max_dist, index = 0.0, 0
-    ax, ay = start_pt[0], start_pt[1]
-    bx, by = end_pt[0], end_pt[1]
-    ab_x, ab_y = bx - ax, by - ay
-    ab_len_sq = ab_x**2 + ab_y**2
+    """Versione Iterativa Fault-Tolerant per prevenire crash su Linux compilato"""
+    if len(points) < 3:
+        return [0, len(points) - 1]
 
-    for i in range(1, len(points) - 1):
-        px, py = points[i][0], points[i][1]
-        if ab_len_sq == 0:
-            dist = math.sqrt((px - ax)**2 + (py - ay)**2)
-        else:
-            t = max(0, min(1, ((px - ax) * ab_x + (py - ay) * ab_y) / ab_len_sq))
-            dist = math.sqrt((px - (ax + t * ab_x))**2 + (py - (ay + t * ab_y))**2)
-        if dist > max_dist:
-            index, max_dist = i, dist
+    stack = [(0, len(points) - 1)]
+    global_indices = {0, len(points) - 1}
 
-    if max_dist > epsilon:
-        left = douglas_peucker(points[:index + 1], epsilon)
-        right = douglas_peucker(points[index:], epsilon)
-        return left[:-1] + [x + index for x in right]
-    return [0, len(points) - 1]
+    while stack:
+        start, end = stack.pop()
+        if end - start < 2:
+            continue
 
+        start_pt, end_pt = points[start], points[end]
+        max_dist = 0.0
+        index = start
+
+        ax, ay = start_pt[0], start_pt[1]
+        bx, by = end_pt[0], end_pt[1]
+        ab_x, ab_y = bx - ax, by - ay
+        ab_len_sq = ab_x ** 2 + ab_y ** 2
+
+        for i in range(start + 1, end):
+            px, py = points[i][0], points[i][1]
+            if ab_len_sq == 0:
+                dist = math.sqrt((px - ax) ** 2 + (py - ay) ** 2)
+            else:
+                t = max(0, min(1, ((px - ax) * ab_x + (py - ay) * ab_y) / ab_len_sq))
+                dist = math.sqrt((px - (ax + t * ab_x)) ** 2 + (py - (ay + t * ab_y)) ** 2)
+            if dist > max_dist:
+                index, max_dist = i, dist
+
+        if max_dist > epsilon:
+            global_indices.add(index)
+            stack.append((start, index))
+            stack.append((index, end))
+
+    return sorted(list(global_indices))
 # ==========================================
 # 4. GESTIONE FLUSSO ED ELABORAZIONE
 # ==========================================
