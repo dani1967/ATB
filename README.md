@@ -36,3 +36,82 @@ Per eseguire il programma da codice sorgente, è necessario **Python 3.8 o super
 
 ```bash
 pip install numpy pandas scipy matplotlib geopy tkintermapview gpxpy fitparse
+💻 Istruzioni di Installazione ed Esecuzione
+🪟 Su Windows
+Opzione 1: Esecuzione standard con Python
+Scaricare o copiare il file datibici.0.0.11.py in una cartella locale.
+
+Aprire il Prompt dei comandi (cmd) o PowerShell in quella cartella.
+
+Installare le dipendenze lanciando:
+
+DOS
+pip install numpy pandas scipy matplotlib geopy tkintermapview gpxpy fitparse
+Avviare l'applicazione:
+
+DOS
+python datibici.0.0.11.py
+Opzione 2: Creazione di un Eseguibile indipendente (.exe)
+Per distribuire il programma su PC che non hanno Python installato, è possibile generare un file .exe stand-alone usando PyInstaller:
+
+Installare il pacchetto di compilazione: pip install pyinstaller
+
+Generare l'eseguibile monolitico senza console testuale di sfondo:
+
+DOS
+pyinstaller --noconsole --onefile datibici.0.0.11.py
+Al termine del processo, l'applicazione finale compilata si troverà all'interno della cartella dist/datibici.0.0.11.exe.
+
+🐧 Su Linux (Ubuntu / Debian / Fedora)
+Le distribuzioni Linux spesso distribuiscono Python senza il modulo grafico tkinter di default. È fondamentale installarlo tramite il gestore pacchetti di sistema prima di procedere.
+
+Opzione 1: Esecuzione da terminale
+Aprire il terminale e installare le dipendenze di sistema e Python:
+
+Bash
+# Per distribuzioni basate su Debian/Ubuntu/Mint:
+sudo apt update
+sudo apt install python3-tk python3-pip -y
+
+# Per distribuzioni basate su Fedora/RHEL:
+sudo dnf install python3-tkinter python3-pip -y
+Installare i moduli Python richiesti:
+
+Bash
+pip3 install numpy pandas scipy matplotlib geopy tkintermapview gpxpy fitparse
+Avviare l'interfaccia grafica:
+
+Bash
+python3 datibici.0.0.11.py
+Opzione 2: Compilazione in Binario Nativo Linux
+Installare PyInstaller: pip3 install pyinstaller
+
+Compilare lo script:
+
+Bash
+pyinstaller --noconsole --onefile datibici.0.0.11.py
+Il file binario compilato nativo per Linux sarà disponibile nella cartella dist/.
+
+🎯 Guida all'Utilizzo del Software
+Caricamento File: Cliccare sul pulsante "Seleziona File e Avvia Analisi Traccia" e scegliere un file .gpx o .fit.
+
+Impostazione Sensibilità: Verrà mostrato un pop-up che richiede la tolleranza in metri di dislivello (Default: 15).
+
+Inserimento Titolo: Fornire un titolo personalizzato per l'uscita (verrà stampato nell'intestazione del grafico).
+
+Navigazione Tab:
+
+Profilo Altimetrico: Mostra l'andamento altimetrico colorato per pendenza e il cartello del GPM.
+
+Tabella Tratti: Mostra la griglia ordinata dei segmenti con la VAM, i Watt medi e la FC media.
+
+Mappa Percorso: Visualizza la mappa stradale interattiva con la traccia e i marker geografici del culmine.
+
+Chiusura Pulita: Utilizzare il pulsante dedicato "Chiudi Applicazione" o la classica X della finestra. Il codice intercetta l'uscita distruggendo preventivamente i widget cartografici per prevenire eccezioni asincrone (after script di tkintermapview) in console.
+
+📄 Licenza e Note Legali
+Copyright (C) 2026 Daniele Drago
+
+Sito Web di riferimento: dandrago@altevista.org
+
+Codice rilasciato per scopi scientifici, di studio geologico-geomorfologico e di analisi atletica personale.
