@@ -1,117 +1,137 @@
-# Analizzatore Performance Bici 
-Un'applicazione desktop stand-alone leggera e intuitiva sviluppata in Python con interfaccia grafica (GUI) per l'analisi avanzata di tracce ciclistiche in formato `.gpx` e `.fit`. 
+Datibici
 
-Il programma elabora i dati altimetrici e planimetrici isolando i singoli tratti tramite criteri geometrici puri, calcola le performance medie (pendenza, VAM, potenza, frequenza cardiaca) e identifica automaticamente il **GPM (Gran Premio della Montagna / Culmine altimetrico)** geolocalizzandolo in tempo reale sulla cartografia.
-
----
-
-## 🚀 Caratteristiche Principali
-
-- **Parser Multicanale:** Supporto nativo per file GPX e FIT (inclusa la decodifica dei record di posizione geometrica compressi dai ciclocomputer).
-- **Segmentazione Intelligente:** Suddivisione dinamica del percorso in tratti omogenei tramite l'algoritmo *Douglas-Peucker* basato sui cambi di pendenza reali e impostabili dall'utente.
-- **Profilo Altimetrico Dinamico:** Grafico interattivo generato con Matplotlib e colorato secondo pendenze standardizzate:
-  - 🟢 Discesa (`<0%`)
-  - 🟡 Falsopiano (`0-3%`)
-  - 🟠 Salita (`3-7%`)
-  - 🔴 Dura (`7-11%`)
-  - 🟤 Muri (`>11%`)
-- **Rilevamento e Geolocalizzazione GPM:** Individuazione automatica del picco massimo dell'uscita con marcatore visivo (`^`) sul grafico e marker dedicato (`⛰️ CULMINE`) sulla mappa.
-- **Integrazione Cartografica:** Visualizzazione della traccia e dei punti di controllo su mappa interattiva integrata basata su OpenStreetMap (`tkintermapview`).
-- **Fault-Tolerance di Rete:** Gestione dei timeout (3 secondi) e gestione dello stato di isolamento. Se il server OpenStreetMap non risponde in tempo, la località viene contrassegnata in tabella con la sigla compatta **(TR)**; in caso di assenza totale di connessione, viene mostrato il tag **Offline**.
-- **Interfaccia Asincrona:** Barra di stato inferiore che traccia l'avanzamento dei calcoli e i cicli di interrogazione ai server OSM senza mai congelare la finestra di Windows/Linux.
+**Datibici** è un'applicazione desktop in Python progettata per l'analisi, la segmentazione e la visualizzazione di tracce ciclistiche nei formati **GPX** e **FIT** provenienti dai moderni ciclocomputer. Il programma genera mappe interattive, profili altimetrici e ripartizioni fisiologiche del carico per analizzare nel dettaglio le prestazioni.
 
 ---
 
-## 🛠️ Logica di Funzionamento ed Algoritmi
+## Come Funziona il Programma (Logica di Elaborazione)
 
-1. **Interpolazione e Filtraggio:** I dati grezzi di altitudine vengono puliti e stabilizzati utilizzando un filtro *Savitzky-Golay* (`savgol_filter`) per rimuovere i micro-errori del GPS o del sensore barometrico senza appiattire le cime delle salite.
-2. **Douglas-Peucker (Riduzione Traccia):** L'algoritmo riduce la complessità altimetrica della traccia spezzandola solo dove la variazione di pendenza supera la "Sensibilità" (es. 15 metri di dislivello cumulato) inserita dall'utente.
-3. **Reverse Geocoding:** Per ogni tratto distribuito, il programma estrae le coordinate di inizio e fine e interroga i server di OpenStreetMap tramite la libreria `geopy` per assegnare i nomi reali dei comuni o delle frazioni attraversate.
+L'applicazione non si limita a mostrare i dati grezzi, ma esegue un flusso di elaborazione e pulizia del tracciato strutturato in diverse fasi:
+
+### 1. Parsing e Normalizzazione dei Dati
+* **File GPX:** Estrae le coordinate geometriche (Latitudine, Longitudine), il tempo UTC e l'elevazione da ogni punto traccia.
+* **File FIT:** Decodifica il formato binario nativo dei dispositivi (es. Garmin, Wahoo), recuperando oltre ai dati geografici anche i record dei sensori accoppiati: **Potenza (Watt)**, **Frequenza Cardiaca (bpm)** e **Cadenza (rpm)**.
+
+### 2. Filtraggio Geometrico e Altimetrico
+I dati GPS contengono spesso errori di campionamento e "rumore" dovuto alla perdita di segnale. Per ovviare a questo:
+* Le coordinate mancanti o errate vengono corrette tramite interpolazione lineare.
+* La distanza tra i punti viene calcolata matematicamente tramite la **formula dell'Haversine** (distanza ortodromica sulla sfera terrestre).
+* Il profilo altimetrico viene ripulito applicando un **filtro di Savitzky-Golay (savgol_filter)** di secondo ordine. Questo passaggio è fondamentale per eliminare i micro-denti di sega altimetrici, garantendo un calcolo realistico del dislivello e delle pendenze istantanee.
+
+### 3. Segmentazione Automatica dei Tratti (Douglas-Peucker)
+La funzionalità chiave del programma è la suddivisione automatica dell'uscita in tratti omogenei di salita, discesa o pianura. 
+L'applicazione utilizza l'algoritmo di **Douglas-Peucker**, un sistema di semplificazione delle linee geometriche. Il programma analizza il profilo altimetrico e individua i "punti di flesso" (i cambi di pendenza più significativi) in base alla tolleranza in metri (Epsilon) impostata dall'utente. Ogni segmento risultante viene poi isolato e analizzato singolarmente.
+
+### 4. Geolocalizzazione Asincrona (Caching)
+Per ogni tratto individuato, il programma interroga le API di *Nominatim (OpenStreetMap)* in background (threading dedicato per non bloccare l'interfaccia grafica) per recuperare i nomi delle località di inizio e fine segmento. Per ridurre il consumo di dati e velocizzare i caricamenti successivi, i nomi vengono salvati localmente in un file di cache (`.geonames`) associato alla traccia.
+
+### 5. Calcolo Fisiologico delle Zone di Intensità
+In base dei valori di **FTP (Functional Threshold Power)** e **FC Max** inseriti dall'utente, il programma analizza secondo per secondo la traccia e categorizza il tempo speso in 6 zone di potenza (da Recupero Attivo a Capacità Anaerobica) e 5 zone cardiache, mostrando i grafici di ripartizione dello stress allenante.
 
 ---
 
-## 📦 Requisiti di Sistema
+## Prerequisiti
 
-Per eseguire il programma da codice sorgente, è necessario **Python 3.8 o superiore** e l'installazione delle seguenti librerie esterne:
+Prima di iniziare, assicurati di avere **Python 3.8 (o superiore)** installato sul tuo sistema.
 
+---
+
+## Installazione e Avvio (Codice Sorgente)
+
+Per eseguire l'applicazione partendo dal codice sorgente, clona il repository (o scarica il file `.py`) e segui i passaggi per il tuo sistema operativo per configurare l'ambiente virtuale e installare le dipendenze tramite `pip`.
+
+### Linux (Ubuntu / Linux Mint)
+Apri il terminale e digita:
 ```bash
-pip install numpy pandas scipy matplotlib geopy tkintermapview gpxpy fitparse
-💻 Istruzioni di Installazione ed Esecuzione
-🪟 Su Windows
-Opzione 1: Esecuzione standard con Python
-Scaricare o copiare il file datibici.0.0.11.py in una cartella locale.
-
-Aprire il Prompt dei comandi (cmd) o PowerShell in quella cartella.
-
-Installare le dipendenze lanciando:
-
-DOS
-pip install numpy pandas scipy matplotlib geopy tkintermapview gpxpy fitparse
-Avviare l'applicazione:
-
-DOS
-python datibici.0.0.11.py
-Opzione 2: Creazione di un Eseguibile indipendente (.exe)
-Per distribuire il programma su PC che non hanno Python installato, è possibile generare un file .exe stand-alone usando PyInstaller:
-
-Installare il pacchetto di compilazione: pip install pyinstaller
-
-Generare l'eseguibile monolitico senza console testuale di sfondo:
-
-DOS
-pyinstaller --noconsole --onefile datibici.0.0.11.py
-Al termine del processo, l'applicazione finale compilata si troverà all'interno della cartella dist/datibici.0.0.11.exe.
-
-🐧 Su Linux (Ubuntu / Debian / Fedora)
-Le distribuzioni Linux spesso distribuiscono Python senza il modulo grafico tkinter di default. È fondamentale installarlo tramite il gestore pacchetti di sistema prima di procedere.
-
-Opzione 1: Esecuzione da terminale
-Aprire il terminale e installare le dipendenze di sistema e Python:
-
-Bash
-# Per distribuzioni basate su Debian/Ubuntu/Mint:
+# 1. Installa il supporto per gli ambienti virtuali e Tkinter (se non presenti)
 sudo apt update
-sudo apt install python3-tk python3-pip -y
+sudo apt install python3-venv python3-tk
 
-# Per distribuzioni basate su Fedora/RHEL:
-sudo dnf install python3-tkinter python3-pip -y
-Installare i moduli Python richiesti:
+# 2. Naviga nella cartella del progetto e crea l'ambiente virtuale
+cd /percorso/alla/cartella/datibici
+python3 -m venv venv
+
+# 3. Attiva l'ambiente virtuale
+source venv/bin/activate
+
+# 4. Aggiorna pip e installa i requisiti
+pip install --upgrade pip
+pip install pandas matplotlib geopy tkintermapview fitparse scipy numpy pillow
+
+# 5. Avvia l'applicazione
+python datibici.0.0.27.py
+Windows
+Apri il Prompt dei Comandi (cmd) o PowerShell e digita:
+
+DOS
+:: 1. Naviga nella cartella del progetto
+cd C:\percorso\alla\cartella\datibici
+
+:: 2. Crea l'ambiente virtuale
+python -m venv venv
+
+:: 3. Attiva l'ambiente virtuale
+venv\Scripts\activate
+
+:: 4. Aggiorna pip e installa i requisiti
+python -m pip install --upgrade pip
+pip install pandas matplotlib geopy tkintermapview fitparse scipy numpy pillow
+
+:: 5. Avvia l'applicazione
+python datibici.0.0.27.py
+macOS
+Apri il terminale e digita:
 
 Bash
-pip3 install numpy pandas scipy matplotlib geopy tkintermapview gpxpy fitparse
-Avviare l'interfaccia grafica:
+# 1. Naviga nella cartella del progetto
+cd /percorso/alla/cartella/datibici
+
+# 2. Crea l'ambiente virtuale
+python3 -m venv venv
+
+# 3. Attiva l'ambiente virtuale
+source venv/bin/activate
+
+# 4. Aggiorna pip e installa i requisiti
+pip install --upgrade pip
+pip install pandas matplotlib geopy tkintermapview fitparse scipy numpy pillow
+
+# 5. Avvia l'applicazione
+python datibici.0.0.27.py
+💡 Nota per le sessioni successive: Ogni volta che riapri il terminale per avviare il programma, ricordati di riposizionarti nella cartella ed eseguire solo il comando di attivazione dell'ambiente virtuale (source venv/bin/activate su Linux/Mac o venv\Scripts\activate su Windows) prima di lanciare lo script.
+
+Creare l'Eseguibile Indipendente
+Se desideri generare un pacchetto autonomo (un file eseguibile che non richiede la presenza di Python installato sul computer di destinazione), puoi utilizzare PyInstaller. Il comando deve essere lanciato all'interno del proprio ambiente virtuale attivo.
+
+Installa PyInstaller tramite pip:
 
 Bash
-python3 datibici.0.0.11.py
-Opzione 2: Compilazione in Binario Nativo Linux
-Installare PyInstaller: pip3 install pyinstaller
-
-Compilare lo script:
+pip install pyinstaller
+Genera il pacchetto lanciando il seguente comando:
 
 Bash
-pyinstaller --noconsole --onefile datibici.0.0.11.py
-Il file binario compilato nativo per Linux sarà disponibile nella cartella dist/.
+pyinstaller --onefile --windowed --hidden-import="PIL._tkinter_finder" --name="Datibici" datibici.0.0.27.py
+Dettaglio parametri utilizzati:
+--onefile: Comprime l'intero programma e le sue dipendenze in un unico file eseguibile autonomo.
 
-🎯 Guida all'Utilizzo del Software
-Caricamento File: Cliccare sul pulsante "Seleziona File e Avvia Analisi Traccia" e scegliere un file .gpx o .fit.
+--windowed: Nasconde la finestra del terminale/prompt in background (indispensabile per le applicazioni GUI basate su Tkinter).
 
-Impostazione Sensibilità: Verrà mostrato un pop-up che richiede la tolleranza in metri di dislivello (Default: 15).
+--hidden-import="PIL._tkinter_finder": Forza PyInstaller a includere il modulo di backend di Pillow necessario per il corretto caricamento delle immagini e delle mappe all'interno di Tkinter, evitando crash all'avvio dell'eseguibile.
 
-Inserimento Titolo: Fornire un titolo personalizzato per l'uscita (verrà stampato nell'intestazione del grafico).
+--name="Datibici": Imposta il nome personalizzato del file binario finale.
 
-Navigazione Tab:
+Al termine del processo, l'applicazione compilata sarà disponibile all'interno della cartella dist/.
 
-Profilo Altimetrico: Mostra l'andamento altimetrico colorato per pendenza e il cartello del GPM.
+Funzionalità Principali
+Parsing File Multi-Formato: Supporto nativo per file di allenamento e percorsi in formato .gpx e .fit.
 
-Tabella Tratti: Mostra la griglia ordinata dei segmenti con la VAM, i Watt medi e la FC media.
+Mappe Interattive: Integrazione con tkintermapview per la visualizzazione dinamica della traccia percorsa.
 
-Mappa Percorso: Visualizza la mappa stradale interattiva con la traccia e i marker geografici del culmine.
+Menu Tipo Mappa: Menu a tendina dedicato per variare istantaneamente il server cartografico (OpenTopoMap con curve di livello, OpenStreetMap Standard, Waymarked Trails ciclistica, USGS Topo).
 
-Chiusura Pulita: Utilizzare il pulsante dedicato "Chiudi Applicazione" o la classica X della finestra. Il codice intercetta l'uscita distruggendo preventivamente i widget cartografici per prevenire eccezioni asincrone (after script di tkintermapview) in console.
+Profili Altimetrici Colorati: Grafici avanzati relativi a quota e pendenze generati tramite matplotlib, con colorazione dinamica basata sulla pendenza del tratto (Verde per discesa, Giallo/Arancione per falsopiano e salita leggera, Rosso/Amaranto per salite dure e muri).
 
-📄 Licenza e Note Legali
-Copyright (C) 2026 Daniele Drago
+Statistiche Descrittive: Analisi puntuale di medie, mediane, valori massimi e minimi di Velocità, VAM (Velocità Ascensionale Media), Potenza e Frequenza Cardiaca.
 
-Sito Web di riferimento: dandrago@altevista.org
+Esportazione Dati: Funzione per scaricare il report tabellare completo dei tratti in formato .csv (separatore ;) e l'immagine del profilo altimetrico in .png.
 
-Codice rilasciato per scopi scientifici, di studio geologico-geomorfologico e di analisi atletica personale.
